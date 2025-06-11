@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Sunrise } from "@deemlol/next-icons";
 import { Sunset } from "@deemlol/next-icons";
 import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { DateTime } from 'luxon';
-import RTSPView from './components/RTSPView';
+import HLSView from './components/HLSView';
 
 const PRIMARY = "rgba(34,74,35,0.86)";
 const PRIMARY_DARK = "rgba(24,54,25,0.95)";
-const PRIMARY_ACCENT = "#b0e6b2";
 
 const hijriFormatter = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', {
   year: 'numeric',
@@ -109,8 +108,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [sunrise, setSunrise] = useState(splitTime("6:32AM"));
   const [sunset, setSunset] = useState(splitTime("8:09PM"));
-  const [showRTSP, setShowRTSP] = useState(false);
-  const [rtspReady, setRtspReady] = useState(false);
+  const [showStream, setShowStream] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const streamDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const HLS_URL = process.env.NEXT_PUBLIC_HLS_URL;
 
   function getCurrentPrayerIndex() {
     if (prayerTimes.length === 0) return 0;
@@ -332,19 +333,19 @@ export default function Home() {
     return null; // All jummahs have passed
   }
 
-  // Add this function to check if we should show RTSP
-  function shouldShowRTSP() {
-    if (!isFriday() || jummahTimes.length === 0) return false;
+  // Add this function to check time until next stream window
+  function getTimeUntilNextStream() {
+    if (!isFriday() || jummahTimes.length === 0) return null;
 
     const now = DateTime.now().setZone('America/Chicago');
-    const currentTime = now.toFormat('HH:mm');
+    let nextStreamTime = null;
+    let minTimeUntil = Infinity;
 
     // Check each jummah time
     for (let i = 0; i < jummahTimes.length; i++) {
       const khutbahTime = jummahTimes[i];
-      const salahTime = jummahIqamas[i];
       
-      // Convert times to DateTime objects
+      // Convert time to DateTime object
       const [khutbahHour, khutbahMinute] = khutbahTime.split(':');
       const khutbahDateTime = now.set({ 
         hour: parseInt(khutbahHour) + (khutbahTime.includes('PM') ? 12 : 0), 
@@ -353,28 +354,163 @@ export default function Home() {
         millisecond: 0
       });
 
-      const [salahHour, salahMinute] = salahTime.split(':');
-      const salahDateTime = now.set({ 
-        hour: parseInt(salahHour) + (salahTime.includes('PM') ? 12 : 0), 
-        minute: parseInt(salahMinute),
+      // Calculate 5 minutes before khutbah
+      const fiveMinutesBeforeKhutbah = khutbahDateTime.minus({ minutes: 5 });
+
+      // If the stream window hasn't started yet
+      if (now < fiveMinutesBeforeKhutbah) {
+        const timeUntil = fiveMinutesBeforeKhutbah.diff(now, 'minutes').minutes;
+        if (timeUntil < minTimeUntil) {
+          minTimeUntil = timeUntil;
+          nextStreamTime = fiveMinutesBeforeKhutbah;
+        }
+      }
+    }
+
+    return nextStreamTime ? {
+      time: nextStreamTime,
+      minutesUntil: minTimeUntil
+    } : null;
+  }
+
+  // Add this function to check if we should show stream
+  function shouldShowHLS() {
+    if (!isFriday() || jummahTimes.length === 0) return false;
+
+    const now = DateTime.now().setZone('America/Chicago');
+    console.log('Current time:', now.toFormat('HH:mm:ss'));
+
+    // Check each jummah time
+    for (let i = 0; i < jummahTimes.length; i++) {
+      const khutbahTime = jummahTimes[i];
+      const salahTime = jummahIqamas[i];
+      
+      // Parse time strings properly
+      const parseTimeString = (timeStr: string) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let hour = hours;
+        if (period === 'PM' && hours !== 12) hour += 12;
+        if (period === 'AM' && hours === 12) hour = 0;
+        return { hour, minutes };
+      };
+
+      // Convert times to DateTime objects
+      const khutbahParsed = parseTimeString(khutbahTime);
+      const salahParsed = parseTimeString(salahTime);
+
+      const khutbahDateTime = now.set({ 
+        hour: khutbahParsed.hour,
+        minute: khutbahParsed.minutes,
         second: 0,
         millisecond: 0
       });
 
-      // Show RTSP 5 minutes before khutbah
+      const salahDateTime = now.set({ 
+        hour: salahParsed.hour,
+        minute: salahParsed.minutes,
+        second: 0,
+        millisecond: 0
+      });
+
+      // Show stream 5 minutes before khutbah
       const fiveMinutesBeforeKhutbah = khutbahDateTime.minus({ minutes: 5 });
-      // Hide RTSP 15 minutes after salah
+      // Hide stream 15 minutes after salah
       const fifteenMinutesAfterSalah = salahDateTime.plus({ minutes: 15 });
 
-      if (now >= fiveMinutesBeforeKhutbah && now <= fifteenMinutesAfterSalah) {
+      // Debug time comparisons
+      const isAfterStart = now >= fiveMinutesBeforeKhutbah;
+      const isBeforeEnd = now <= fifteenMinutesAfterSalah;
+      
+      console.log('Time check:', {
+        now: now.toFormat('HH:mm:ss'),
+        fiveMinutesBeforeKhutbah: fiveMinutesBeforeKhutbah.toFormat('HH:mm:ss'),
+        fifteenMinutesAfterSalah: fifteenMinutesAfterSalah.toFormat('HH:mm:ss'),
+        isAfterStart,
+        isBeforeEnd,
+        khutbahTime,
+        salahTime,
+        parsedKhutbah: khutbahParsed,
+        parsedSalah: salahParsed
+      });
+
+      // Check if current time is within the stream window
+      if (isAfterStart && isBeforeEnd) {
+        console.log('Stream should show - within window');
         return true;
+      }
+    }
+
+    const nextStream = getTimeUntilNextStream();
+    if (nextStream) {
+      console.log('Next stream in:', {
+        minutes: Math.floor(nextStream.minutesUntil),
+        at: nextStream.time.toFormat('HH:mm:ss')
+      });
+    }
+
+    return false;
+  }
+
+  // Add this function to check if it's time for full screen
+  function shouldShowFullScreen() {
+    if (!isFriday() || jummahTimes.length === 0) return false;
+
+    const now = DateTime.now().setZone('America/Chicago');
+    
+    // Find the current/next jummah time
+    for (let i = 0; i < jummahTimes.length; i++) {
+      const khutbahTime = jummahTimes[i];
+      
+      // Parse time strings properly
+      const parseTimeString = (timeStr: string) => {
+        const [time, period] = timeStr.split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+        let hour = hours;
+        if (period === 'PM' && hours !== 12) hour += 12;
+        if (period === 'AM' && hours === 12) hour = 0;
+        return { hour, minutes };
+      };
+
+      const khutbahParsed = parseTimeString(khutbahTime);
+      const khutbahDateTime = now.set({ 
+        hour: khutbahParsed.hour,
+        minute: khutbahParsed.minutes,
+        second: 0,
+        millisecond: 0
+      });
+
+      // Calculate 5 minutes before this khutbah
+      const fiveMinutesBefore = khutbahDateTime.minus({ minutes: 5 });
+
+      // If we're within the window for this khutbah
+      if (now >= fiveMinutesBefore && now < khutbahDateTime) {
+        return false; // Show in grid
+      }
+      
+      // If we're at or after this khutbah time
+      if (now >= khutbahDateTime) {
+        // Check if we're within 15 minutes after salah
+        const salahTime = jummahIqamas[i];
+        const salahParsed = parseTimeString(salahTime);
+        const salahDateTime = now.set({ 
+          hour: salahParsed.hour,
+          minute: salahParsed.minutes,
+          second: 0,
+          millisecond: 0
+        });
+        const fifteenMinutesAfter = salahDateTime.plus({ minutes: 15 });
+        
+        if (now <= fifteenMinutesAfter) {
+          return true; // Show full screen
+        }
       }
     }
 
     return false;
   }
 
-  // Update the timer effect to check for RTSP visibility
+  // Update the timer effect
   useEffect(() => {
     if (prayerTimes.length === 0) return;
 
@@ -396,26 +532,32 @@ export default function Home() {
         }, 500);
       }
 
-      // Check if we should show RTSP
-      const shouldLoadRTSP = shouldShowRTSP();
+      // Check stream visibility and full screen state
+      const shouldShow = shouldShowHLS();
+      const shouldBeFullScreen = shouldShowFullScreen();
       
-      // If we should show RTSP and it's not showing, start loading
-      if (shouldLoadRTSP && !showRTSP) {
-        setShowRTSP(true);
-      } 
-      // If we shouldn't show RTSP and it is showing, start transition back
-      else if (!shouldLoadRTSP && showRTSP) {
-        // First fade in the main content
-        setRtspReady(false);
-        // Then after the fade transition, remove the RTSP view
-        setTimeout(() => {
-          setShowRTSP(false);
-        }, 500); // Match the transition duration
+      if (shouldShow !== showStream) {
+        console.log('Stream visibility changed:', shouldShow);
+        setShowStream(shouldShow);
+        // Reset full screen state when stream ends
+        if (!shouldShow) {
+          setIsFullScreen(false);
+        }
+      }
+      
+      if (shouldBeFullScreen !== isFullScreen) {
+        console.log('Full screen state changed:', shouldBeFullScreen);
+        setIsFullScreen(shouldBeFullScreen);
       }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [currentPrayerIndex, prayerTimes]);
+    return () => {
+      clearInterval(timer);
+      if (streamDebounceRef.current) {
+        clearTimeout(streamDebounceRef.current);
+      }
+    };
+  }, [currentPrayerIndex, prayerTimes, showStream, isFullScreen]);
 
   const hrs = Math.floor(timeUntilNextPrayer / 3600);
   const mins = Math.floor((timeUntilNextPrayer % 3600) / 60);
@@ -484,42 +626,45 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen flex flex-col justify-between text-white overflow-hidden" style={{ background: PRIMARY, fontFamily: 'Arial, sans-serif' }}>
-      {showRTSP && <RTSPView isVisible={true} onReady={() => setRtspReady(true)} />}
-      
-      {/* Main content - Always shown */}
-      <div className={`flex-1 w-full grid grid-cols-3 gap-0 h-full transition-opacity duration-500 ${rtspReady ? 'opacity-0' : 'opacity-100'}`}>
-        {/* Left: Prayer Times Table (2/3) */}
-        <div className="col-span-2 flex flex-col justify-center items-center" style={{ background: PRIMARY_DARK }}>
-          <div className="w-full">
-            <div
-              className="grid text-center text-4xl 2xl:text-6xl font-semibold w-full"
-              style={{ gridTemplateColumns: '1.8fr 2.5fr 2.5fr' }}
-            >
-              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">&nbsp;</div>
-              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">STARTS</div>
-              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">IQAMAH</div>
-              {prayerTimes.map((p, i) => {
-                const start = splitTime(p.start);
-                const iqamah = splitTime(p.iqamah);
-                return (
-                  <React.Fragment key={p.name}>
-                    <div className={`py-8 2xl:py-10 flex items-center justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}>{p.name}</div>
-                    <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
-                      <span className="text-8xl 2xl:text-9xl font-bold">{start.main}</span>
-                      <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{start.suffix}</span>
-                    </div>
-                    <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
-                      <span className="text-8xl 2xl:text-9xl font-bold">{iqamah.main}</span>
-                      <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{iqamah.suffix}</span>
-                    </div>
-                  </React.Fragment>
-                );
-              })}
+      {/* Main content */}
+      <div className="flex-1 w-full grid grid-cols-3 gap-0 h-full">
+        {/* Left: Prayer Times Table (2/3) or Stream */}
+        <div className="col-span-2 flex flex-col justify-center items-center transition-opacity duration-500" style={{ background: PRIMARY_DARK }}>
+          {showStream ? (
+            <HLSView isVisible={true} hlsUrl={HLS_URL} isFullScreen={isFullScreen} />
+          ) : (
+            <div className="w-full">
+              <div
+                className="grid text-center text-4xl 2xl:text-6xl font-semibold w-full"
+                style={{ gridTemplateColumns: '1.8fr 2.5fr 2.5fr' }}
+              >
+                <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">&nbsp;</div>
+                <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">STARTS</div>
+                <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">IQAMAH</div>
+                {prayerTimes.map((p, i) => {
+                  const start = splitTime(p.start);
+                  const iqamah = splitTime(p.iqamah);
+                  return (
+                    <React.Fragment key={p.name}>
+                      <div className={`py-8 2xl:py-10 flex items-center justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}>{p.name}</div>
+                      <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
+                        <span className="text-8xl 2xl:text-9xl font-bold">{start.main}</span>
+                        <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{start.suffix}</span>
+                      </div>
+                      <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
+                        <span className="text-8xl 2xl:text-9xl font-bold">{iqamah.main}</span>
+                        <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{iqamah.suffix}</span>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
+        
         {/* Right: Details (1/3) */}
-        <div className="col-span-1 relative flex flex-col justify-center items-center h-full w-full">
+        <div className={`col-span-1 relative flex flex-col justify-center items-center h-full w-full transition-opacity duration-500 ${showStream && isFullScreen ? 'opacity-0' : 'opacity-100'}`}>
           {/* Background Image with Overlay */}
           <div 
             className="absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000"

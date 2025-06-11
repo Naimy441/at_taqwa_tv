@@ -4,38 +4,15 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile.frontend
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_BACKEND_URL=localhost
     env_file:
       - .env
-    depends_on:
-      - backend
     networks:
       - app-network
-
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    ports:
-      - "2000:2000"
-    env_file:
-      - .env
-    environment:
-      - RTSP_URL=rtsp://192.168.4.31:8554/mystream
-    networks:
-      - app-network
-    container_name: rtsp-relay-backend
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:2000/api/stream"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 networks:
   app-network:
