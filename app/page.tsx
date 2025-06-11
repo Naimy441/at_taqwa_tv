@@ -1,5 +1,5 @@
 "use client";
- 
+
 import React, { useEffect, useState } from "react";
 import { Sunrise } from "@deemlol/next-icons";
 import { Sunset } from "@deemlol/next-icons";
@@ -396,15 +396,15 @@ export default function Home() {
         </div>
         <div className="flex gap-8 text-white font-bold">
           <div className="flex flex-col items-center">
-            <span className="text-7xl 2xl:text-7xl">{hrs.toString().padStart(2, '0')}</span>
+            <span className="text-7xl 2xl:text-8xl">{hrs.toString().padStart(2, '0')}</span>
             <span className="text-base 2xl:text-2xl font-semibold mt-1">hours</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-7xl 2xl:text-7xl">{mins.toString().padStart(2, '0')}</span>
+            <span className="text-7xl 2xl:text-8xl">{mins.toString().padStart(2, '0')}</span>
             <span className="text-base 2xl:text-2xl font-semibold mt-1">minutes</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-7xl 2xl:text-7xl">{secs.toString().padStart(2, '0')}</span>
+            <span className="text-7xl 2xl:text-8xl">{secs.toString().padStart(2, '0')}</span>
             <span className="text-base 2xl:text-2xl font-semibold mt-1">seconds</span>
           </div>
         </div>
@@ -421,31 +421,31 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen w-full flex flex-col justify-between text-white overflow-hidden" style={{ background: PRIMARY, fontFamily: 'Arial, sans-serif' }}>
-      <div className="flex-1 w-full grid grid-cols-3 gap-0 h-screen">
+    <div className="h-screen w-screen flex flex-col justify-between text-white overflow-hidden" style={{ background: PRIMARY, fontFamily: 'Arial, sans-serif' }}>
+      <div className="flex-1 w-full grid grid-cols-3 gap-0 h-full">
         {/* Left: Prayer Times Table (2/3) */}
         <div className="col-span-2 flex flex-col justify-center items-center" style={{ background: PRIMARY_DARK }}>
           <div className="w-full">
             <div
               className="grid text-center text-4xl 2xl:text-6xl font-semibold w-full"
-              style={{ gridTemplateColumns: '1.5fr 2.5fr 2.5fr' }}
+              style={{ gridTemplateColumns: '1.8fr 2.5fr 2.5fr' }}
             >
-              <div className="py-8 text-[#b0e6b2] text-3xl 2xl:text-5xl">&nbsp;</div>
-              <div className="py-8 text-[#b0e6b2] text-3xl 2xl:text-5xl">STARTS</div>
-              <div className="py-8 text-[#b0e6b2] text-3xl 2xl:text-5xl">IQAMAH</div>
+              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">&nbsp;</div>
+              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">STARTS</div>
+              <div className="pt-8 text-[#b0e6b2] text-2xl 2xl:text-4xl">IQAMAH</div>
               {prayerTimes.map((p, i) => {
                 const start = splitTime(p.start);
                 const iqamah = splitTime(p.iqamah);
                 return (
                   <React.Fragment key={p.name}>
-                    <div className={`py-12 2xl:py-16 flex items-center justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}>{p.name}</div>
-                    <div className={`py-12 2xl:py-16 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
-                      <span className="text-7xl 2xl:text-8xl font-bold">{start.main}</span>
-                      <span className="text-3xl 2xl:text-5xl font-semibold ml-2 mb-1">{start.suffix}</span>
+                    <div className={`py-8 2xl:py-10 flex items-center justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}>{p.name}</div>
+                    <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
+                      <span className="text-8xl 2xl:text-9xl font-bold">{start.main}</span>
+                      <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{start.suffix}</span>
                     </div>
-                    <div className={`py-12 2xl:py-16 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
-                      <span className="text-7xl 2xl:text-8xl font-bold">{iqamah.main}</span>
-                      <span className="text-3xl 2xl:text-5xl font-semibold ml-2 mb-1">{iqamah.suffix}</span>
+                    <div className={`py-8 2xl:py-10 flex flex-row items-end justify-center transition-colors duration-1000 ${i === currentPrayerIndex ? "bg-[#295c2a]/80" : ""}`}> 
+                      <span className="text-8xl 2xl:text-9xl font-bold">{iqamah.main}</span>
+                      <span className="text-4xl 2xl:text-5xl font-semibold ml-2 mb-1">{iqamah.suffix}</span>
                     </div>
                   </React.Fragment>
                 );
@@ -466,9 +466,9 @@ export default function Home() {
           <div className="absolute inset-0 bg-black/60" />
           
           {/* Content */}
-          <div className="relative z-10 w-full max-w-xl flex flex-col justify-center items-center px-2">
+          <div className="relative z-10 w-full max-w-xl flex flex-col justify-center items-center px-2 py-8">
             {/* Centered Dates */}
-            <div className="w-full flex flex-col items-center justify-center mt-2">
+            <div className="w-full flex flex-col items-center justify-center">
               <div className="flex flex-col items-center">
                 <div className="text-white text-2xl 2xl:text-4xl font-medium mb-2">{gregorianDate}</div>
                 <div className="text-white text-3xl 2xl:text-5xl font-bold">{hijriDate}</div>
@@ -477,8 +477,8 @@ export default function Home() {
             </div>
             {/* Centered Time */}
             <div className="w-full flex flex-col items-center justify-center">
-              <div className="font-bold mt-2 mb-2 leading-none flex flex-row items-end justify-center">
-                <span className="text-white" style={{ fontSize: '10vw', lineHeight: 1 }}>{currentTime.main}</span>
+              <div className="font-bold mt-4 mb-4 leading-none flex flex-row items-end justify-center">
+                <span className="text-white" style={{ fontSize: '12vw', lineHeight: 1 }}>{currentTime.main}</span>
                 <span className="text-white text-4xl 2xl:text-6xl font-semibold ml-2 mb-2">{currentTime.suffix}</span>
               </div>
             </div>
@@ -488,7 +488,7 @@ export default function Home() {
             </div>
             <div className="w-2/3 border-b-2 border-white/30 my-4 rounded-full" />
             {/* Jumumah */}
-            <div className="w-full text-center mt-12">
+            <div className="w-full text-center mt-8">
               <div className="text-2xl 2xl:text-3xl text-white/80 mb-2">JUMMAH KHUTBAH</div>
               <div className="flex flex-col items-center gap-4">
                 <div className="flex justify-center gap-12 text-3xl 2xl:text-4xl font-bold text-white">
@@ -519,7 +519,7 @@ export default function Home() {
               </div>
             </div>
             {/* Sunrise & Sunset Centered Row */}
-            <div className="flex flex-row items-center justify-center mt-10 gap-8 w-full">
+            <div className="flex flex-row items-center justify-center mt-8 gap-12 w-full">
               <div className="flex flex-col items-center">
                 <Sunrise className="w-12 h-12 text-[#fbbf24]" />
                 <span className="text-white font-medium text-2xl 2xl:text-3xl mt-2">SUNRISE</span>
