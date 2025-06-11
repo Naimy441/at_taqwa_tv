@@ -29,56 +29,25 @@ const handler = proxy({
   },
 });
 
-// Track single active connection
-let activeConnection = null;
-
 app.ws('/api/stream', (ws, req) => {
-  // If there's already an active connection, reject the new one
-  if (activeConnection) {
-    console.log('Rejecting new connection - only one connection allowed');
-    ws.close(1000, 'Only one connection allowed');
-    return;
-  }
+  console.log('🟢 New client connected');
 
-  // Set as active connection
-  activeConnection = ws;
-  console.log('New connection established');
-
-  // Handle connection close
   ws.on('close', () => {
-    console.log('Client disconnected');
-    activeConnection = null;
+    console.log('🔴 Client disconnected');
+    // Optional: call cleanup on handler if supported
   });
 
-  // Handle errors
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
-    activeConnection = null;
   });
 
-  // Use the proxy handler
   handler(ws, req);
 });
 
-// Cleanup function for graceful shutdown
-function cleanup() {
-  console.log('Cleaning up connection...');
-  if (activeConnection && activeConnection.readyState === activeConnection.OPEN) {
-    activeConnection.close();
-  }
-  activeConnection = null;
-}
-
-// Handle process termination
-process.on('SIGTERM', cleanup);
-process.on('SIGINT', cleanup);
-
 const server = app.listen(2000, () => {
-  console.log('RTSP relay server running on ws://localhost:2000/api/stream');
+  console.log('✅ RTSP relay server running on ws://localhost:2000/api/stream');
 });
 
-// Handle server errors
 server.on('error', (error) => {
   console.error('Server error:', error);
-  cleanup();
-}); 
+});

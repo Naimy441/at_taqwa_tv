@@ -543,7 +543,7 @@ export default function Home() {
             {/* Centered Time */}
             <div className="w-full flex flex-col items-center justify-center">
               <div className="font-bold mt-4 mb-4 leading-none flex flex-row items-end justify-center">
-                <span className="text-white" style={{ fontSize: '11vw', lineHeight: 1 }}>{currentTime.main}</span>
+                <span className="text-white" style={{ fontSize: '10vw', lineHeight: 1 }}>{currentTime.main}</span>
                 <span className="text-white text-4xl 2xl:text-6xl font-semibold ml-2 mb-2">{currentTime.suffix}</span>
               </div>
             </div>
