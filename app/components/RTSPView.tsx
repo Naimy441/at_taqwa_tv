@@ -10,6 +10,7 @@ interface RTSPViewProps {
 
 const MAX_RETRIES = 5;
 const RECONNECT_DELAY = 2000; // 2 seconds
+const DEBOUNCE_DELAY = 500; // 500ms debounce
 
 export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -20,6 +21,7 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const observerRef = useRef<MutationObserver | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const setCanvasDimensions = () => {
     if (!canvasRef.current) return;
@@ -40,6 +42,26 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
     canvasRef.current.style.opacity = '1';
   };
 
+  const cleanup = () => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+    if (playerRef.current) {
+      try {
+        playerRef.current.destroy?.();
+      } catch (e) {
+        console.error('Error destroying player:', e);
+      }
+      playerRef.current = null;
+    }
+  };
+
   const initializePlayer = () => {
     if (!canvasRef.current || isConnecting) return;
 
@@ -48,7 +70,9 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
 
     try {
       setIsConnecting(true);
-      const wsUrl = `ws://${window.location.hostname}:2000/api/stream`;
+      // Use the environment variable or fallback to window.location.hostname
+      const backendHost = process.env.NEXT_PUBLIC_BACKEND_URL || window.location.hostname;
+      const wsUrl = `ws://${backendHost}:2000/api/stream`;
       console.log('Connecting to WebSocket:', wsUrl);
 
       // Set up observer to watch for style changes
@@ -68,6 +92,9 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
         attributes: true,
         attributeFilter: ['style']
       });
+
+      // Cleanup existing player before creating a new one
+      cleanup();
 
       playerRef.current = loadPlayer({
         url: wsUrl,
@@ -141,13 +168,20 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
   };
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      cleanup();
+      return;
+    }
 
-    // Delay to ensure the canvas exists and is fully rendered
-    requestAnimationFrame(() => {
+    // Debounce initialization
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
+
+    initTimeoutRef.current = setTimeout(() => {
       setCanvasDimensions();
       initializePlayer();
-    });
+    }, DEBOUNCE_DELAY);
 
     const handleResize = () => {
       setCanvasDimensions();
@@ -158,15 +192,7 @@ export default function RTSPView({ isVisible, onReady }: RTSPViewProps) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-      if (playerRef.current) {
-        console.log('Cleaning up player...');
-      }
+      cleanup();
     };
   }, [isVisible]);
 

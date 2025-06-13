@@ -1,0 +1,18 @@
+{
+  "name": "rtsp-relay-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "rtsp-server.js",
+  "scripts": {
+    "start": "node rtsp-server.js",
+    "dev": "nodemon rtsp-server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-ws": "^5.0.2",
+    "rtsp-relay": "^1.9.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+} 
