@@ -6,6 +6,7 @@ import { Sunset } from "@deemlol/next-icons";
 import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { DateTime } from 'luxon';
+import RTSPView from './components/RTSPView';
 
 const PRIMARY = "rgba(34,74,35,0.86)";
 const PRIMARY_DARK = "rgba(24,54,25,0.95)";
@@ -108,6 +109,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [sunrise, setSunrise] = useState(splitTime("6:32AM"));
   const [sunset, setSunset] = useState(splitTime("8:09PM"));
+  const [showRTSP, setShowRTSP] = useState(false);
+  const [rtspReady, setRtspReady] = useState(false);
 
   function getCurrentPrayerIndex() {
     if (prayerTimes.length === 0) return 0;
@@ -298,36 +301,6 @@ export default function Home() {
     return () => clearTimeout(midnightTimer);
   }, []);
 
-  // Update current prayer index and time until next prayer
-  useEffect(() => {
-    if (prayerTimes.length === 0) return;
-
-    const timer = setInterval(() => {
-      setCurrentTime(splitTime(getCurrentTime()));
-      const timeUntil = getTimeUntilNextPrayer();
-      if (!isNaN(timeUntil)) {
-        setTimeUntilNextPrayer(timeUntil);
-      }
-      setHijriDate(hijriFormatter.format(new Date()));
-      setGregorianDate(gregorianFormatter.format(new Date()));
-
-      const newPrayerIndex = getCurrentPrayerIndex();
-      if (newPrayerIndex !== currentPrayerIndex) {
-        setIsTransitioning(true);
-        setTimeout(() => {
-          setCurrentPrayerIndex(newPrayerIndex);
-          setIsTransitioning(false);
-        }, 500);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [currentPrayerIndex, prayerTimes]);
-
-  const hrs = Math.floor(timeUntilNextPrayer / 3600);
-  const mins = Math.floor((timeUntilNextPrayer % 3600) / 60);
-  const secs = timeUntilNextPrayer % 60;
-
   // Add this function to check if it's Friday
   function isFriday() {
     return DateTime.now().setZone('America/Chicago').weekday === 5;
@@ -358,6 +331,95 @@ export default function Home() {
 
     return null; // All jummahs have passed
   }
+
+  // Add this function to check if we should show RTSP
+  function shouldShowRTSP() {
+    if (!isFriday() || jummahTimes.length === 0) return false;
+
+    const now = DateTime.now().setZone('America/Chicago');
+    const currentTime = now.toFormat('HH:mm');
+
+    // Check each jummah time
+    for (let i = 0; i < jummahTimes.length; i++) {
+      const khutbahTime = jummahTimes[i];
+      const salahTime = jummahIqamas[i];
+      
+      // Convert times to DateTime objects
+      const [khutbahHour, khutbahMinute] = khutbahTime.split(':');
+      const khutbahDateTime = now.set({ 
+        hour: parseInt(khutbahHour) + (khutbahTime.includes('PM') ? 12 : 0), 
+        minute: parseInt(khutbahMinute),
+        second: 0,
+        millisecond: 0
+      });
+
+      const [salahHour, salahMinute] = salahTime.split(':');
+      const salahDateTime = now.set({ 
+        hour: parseInt(salahHour) + (salahTime.includes('PM') ? 12 : 0), 
+        minute: parseInt(salahMinute),
+        second: 0,
+        millisecond: 0
+      });
+
+      // Show RTSP 5 minutes before khutbah
+      const fiveMinutesBeforeKhutbah = khutbahDateTime.minus({ minutes: 5 });
+      // Hide RTSP 15 minutes after salah
+      const fifteenMinutesAfterSalah = salahDateTime.plus({ minutes: 15 });
+
+      if (now >= fiveMinutesBeforeKhutbah && now <= fifteenMinutesAfterSalah) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Update the timer effect to check for RTSP visibility
+  useEffect(() => {
+    if (prayerTimes.length === 0) return;
+
+    const timer = setInterval(() => {
+      setCurrentTime(splitTime(getCurrentTime()));
+      const timeUntil = getTimeUntilNextPrayer();
+      if (!isNaN(timeUntil)) {
+        setTimeUntilNextPrayer(timeUntil);
+      }
+      setHijriDate(hijriFormatter.format(new Date()));
+      setGregorianDate(gregorianFormatter.format(new Date()));
+
+      const newPrayerIndex = getCurrentPrayerIndex();
+      if (newPrayerIndex !== currentPrayerIndex) {
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setCurrentPrayerIndex(newPrayerIndex);
+          setIsTransitioning(false);
+        }, 500);
+      }
+
+      // Check if we should show RTSP
+      const shouldLoadRTSP = shouldShowRTSP();
+      
+      // If we should show RTSP and it's not showing, start loading
+      if (shouldLoadRTSP && !showRTSP) {
+        setShowRTSP(true);
+      } 
+      // If we shouldn't show RTSP and it is showing, start transition back
+      else if (!shouldLoadRTSP && showRTSP) {
+        // First fade in the main content
+        setRtspReady(false);
+        // Then after the fade transition, remove the RTSP view
+        setTimeout(() => {
+          setShowRTSP(false);
+        }, 500); // Match the transition duration
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentPrayerIndex, prayerTimes]);
+
+  const hrs = Math.floor(timeUntilNextPrayer / 3600);
+  const mins = Math.floor((timeUntilNextPrayer % 3600) / 60);
+  const secs = timeUntilNextPrayer % 60;
 
   // Update the countdown display section
   const renderCountdown = () => {
@@ -422,7 +484,10 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen flex flex-col justify-between text-white overflow-hidden" style={{ background: PRIMARY, fontFamily: 'Arial, sans-serif' }}>
-      <div className="flex-1 w-full grid grid-cols-3 gap-0 h-full">
+      {showRTSP && <RTSPView isVisible={true} onReady={() => setRtspReady(true)} />}
+      
+      {/* Main content - Always shown */}
+      <div className={`flex-1 w-full grid grid-cols-3 gap-0 h-full transition-opacity duration-500 ${rtspReady ? 'opacity-0' : 'opacity-100'}`}>
         {/* Left: Prayer Times Table (2/3) */}
         <div className="col-span-2 flex flex-col justify-center items-center" style={{ background: PRIMARY_DARK }}>
           <div className="w-full">
@@ -478,7 +543,7 @@ export default function Home() {
             {/* Centered Time */}
             <div className="w-full flex flex-col items-center justify-center">
               <div className="font-bold mt-4 mb-4 leading-none flex flex-row items-end justify-center">
-                <span className="text-white" style={{ fontSize: '12vw', lineHeight: 1 }}>{currentTime.main}</span>
+                <span className="text-white" style={{ fontSize: '11vw', lineHeight: 1 }}>{currentTime.main}</span>
                 <span className="text-white text-4xl 2xl:text-6xl font-semibold ml-2 mb-2">{currentTime.suffix}</span>
               </div>
             </div>
@@ -493,9 +558,9 @@ export default function Home() {
               <div className="flex flex-col items-center gap-4">
                 <div className="flex justify-center gap-12 text-3xl 2xl:text-4xl font-bold text-white">
                   {jummahTimes.map((t, i) => {
-                    const jum = splitTime(t);
-                    return (
-                      <span key={i} className="flex flex-row items-end">
+                  const jum = splitTime(t);
+                  return (
+                    <span key={i} className="flex flex-row items-end">
                         <span className="text-3xl 2xl:text-4xl font-bold">{jum.main}</span>
                         <span className="text-xl 2xl:text-2xl font-semibold ml-1 mb-1">{jum.suffix}</span>
                       </span>
@@ -511,9 +576,9 @@ export default function Home() {
                         <span key={i} className="flex flex-row items-end">
                           <span className="text-3xl 2xl:text-4xl font-bold">{salah.main}</span>
                           <span className="text-xl 2xl:text-2xl font-semibold ml-1 mb-1">{salah.suffix}</span>
-                        </span>
-                      );
-                    })}
+                    </span>
+                  );
+                })}
                   </div>
                 </div>
               </div>
