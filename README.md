@@ -45,6 +45,7 @@ A modern, responsive digital signage system for AT Taqwa Mosque, displaying pray
 3. Create a `.env.local` file in the root directory and add your environment variables:
    ```
    NEXT_PUBLIC_HLS_URL=your_hls_stream_url
+   NEXT_PUBLIC_WEBRTC_URL=your_webrtc_websocket_url
    NEXT_PUBLIC_FIREBASE_API_KEY=your-var
    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-var
    NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-var
@@ -52,6 +53,8 @@ A modern, responsive digital signage system for AT Taqwa Mosque, displaying pray
    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-var
    NEXT_PUBLIC_FIREBASE_APP_ID=your-var
    ```
+
+   Note: The system will use WebRTC by default if `NEXT_PUBLIC_WEBRTC_URL` is set. To use HLS streaming, set the debug variable `DEBUG_FORCE_HLS` in app/page.tsx.
 
 4. Start the development server:
    ```bash

@@ -7,6 +7,7 @@ import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { DateTime } from 'luxon';
 import HLSView from './components/HLSView';
+import WebRTCView from './components/WebRTCView';
 
 const PRIMARY = "rgba(34,74,35,0.86)";
 const PRIMARY_DARK = "rgba(24,54,25,0.95)";
@@ -112,6 +113,9 @@ export default function Home() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const streamDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const HLS_URL = process.env.NEXT_PUBLIC_HLS_URL;
+  const WEBRTC_URL = process.env.NEXT_PUBLIC_WEBRTC_URL;
+  // Debug flag to force HLS streaming
+  const DEBUG_FORCE_HLS = false;
 
   function getCurrentPrayerIndex() {
     if (prayerTimes.length === 0) return 0;
@@ -631,7 +635,11 @@ export default function Home() {
         {/* Left: Prayer Times Table (2/3) or Stream */}
         <div className="col-span-2 flex flex-col justify-center items-center transition-opacity duration-500" style={{ background: PRIMARY_DARK }}>
           {showStream ? (
-            <HLSView isVisible={true} hlsUrl={HLS_URL} isFullScreen={isFullScreen} />
+            WEBRTC_URL && !DEBUG_FORCE_HLS ? (
+              <WebRTCView isVisible={true} webrtcUrl={WEBRTC_URL} isFullScreen={isFullScreen} />
+            ) : (
+              <HLSView isVisible={true} hlsUrl={HLS_URL} isFullScreen={isFullScreen} />
+            )
           ) : (
             <div className="w-full">
               <div
