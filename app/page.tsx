@@ -378,7 +378,7 @@ export default function Home() {
     if (!isFriday() || jummahTimes.length === 0) return false;
 
     const now = DateTime.now().setZone('America/Chicago');
-    console.log('Current time:', now.toFormat('HH:mm:ss'));
+    // console.log('Current time:', now.toFormat('HH:mm:ss'));
 
     // Check each jummah time
     for (let i = 0; i < jummahTimes.length; i++) {
@@ -422,32 +422,32 @@ export default function Home() {
       const isAfterStart = now >= fiveMinutesBeforeKhutbah;
       const isBeforeEnd = now <= fifteenMinutesAfterSalah;
       
-      console.log('Time check:', {
-        now: now.toFormat('HH:mm:ss'),
-        fiveMinutesBeforeKhutbah: fiveMinutesBeforeKhutbah.toFormat('HH:mm:ss'),
-        fifteenMinutesAfterSalah: fifteenMinutesAfterSalah.toFormat('HH:mm:ss'),
-        isAfterStart,
-        isBeforeEnd,
-        khutbahTime,
-        salahTime,
-        parsedKhutbah: khutbahParsed,
-        parsedSalah: salahParsed
-      });
+      // console.log('Time check:', {
+      //   now: now.toFormat('HH:mm:ss'),
+      //   fiveMinutesBeforeKhutbah: fiveMinutesBeforeKhutbah.toFormat('HH:mm:ss'),
+      //   fifteenMinutesAfterSalah: fifteenMinutesAfterSalah.toFormat('HH:mm:ss'),
+      //   isAfterStart,
+      //   isBeforeEnd,
+      //   khutbahTime,
+      //   salahTime,
+      //   parsedKhutbah: khutbahParsed,
+      //   parsedSalah: salahParsed
+      // });
 
       // Check if current time is within the stream window
       if (isAfterStart && isBeforeEnd) {
-        console.log('Stream should show - within window');
+        // console.log('Stream should show - within window');
         return true;
       }
     }
 
-    const nextStream = getTimeUntilNextStream();
-    if (nextStream) {
-      console.log('Next stream in:', {
-        minutes: Math.floor(nextStream.minutesUntil),
-        at: nextStream.time.toFormat('HH:mm:ss')
-      });
-    }
+    // const nextStream = getTimeUntilNextStream();
+    // if (nextStream) {
+    //   console.log('Next stream in:', {
+    //     minutes: Math.floor(nextStream.minutesUntil),
+    //     at: nextStream.time.toFormat('HH:mm:ss')
+    //   });
+    // }
 
     return false;
   }
@@ -537,7 +537,7 @@ export default function Home() {
       const shouldBeFullScreen = shouldShowFullScreen();
       
       if (shouldShow !== showStream) {
-        console.log('Stream visibility changed:', shouldShow);
+        // console.log('Stream visibility changed:', shouldShow);
         setShowStream(shouldShow);
         // Reset full screen state when stream ends
         if (!shouldShow) {
@@ -546,7 +546,7 @@ export default function Home() {
       }
       
       if (shouldBeFullScreen !== isFullScreen) {
-        console.log('Full screen state changed:', shouldBeFullScreen);
+        // console.log('Full screen state changed:', shouldBeFullScreen);
         setIsFullScreen(shouldBeFullScreen);
       }
     }, 1000);

@@ -32,24 +32,7 @@ export default function HLSView({ isVisible, hlsUrl, isFullScreen }: HLSViewProp
       if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 90,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          maxBufferSize: 60 * 1000 * 1000, // 60MB
-          maxBufferHole: 0.5,
-          highBufferWatchdogPeriod: 2,
-          nudgeMaxRetry: 5,
-          nudgeOffset: 0.1,
-          startLevel: -1, // Auto quality
-          abrEwmaDefaultEstimate: 500000, // 500 kbps
-          abrBandWidthFactor: 0.95,
-          abrBandWidthUpFactor: 0.7,
-          abrMaxWithRealBitrate: true,
-          testBandwidth: true,
-          progressive: true,
-          maxLoadingDelay: 4,
-          maxStarvationDelay: 4
+          lowLatencyMode: true
         });
 
         hlsRef.current = hls;
